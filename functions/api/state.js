@@ -1,4 +1,4 @@
-const TASK_COUNT = 18;
+import { isAdmin } from "./admin/_auth.js";
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -22,19 +22,17 @@ export async function onRequestGet(context) {
     try {
         const database = getDatabase(context);
         const { results } = await database
-            .prepare("SELECT task_index, checked FROM checklist_state ORDER BY task_index")
+            .prepare("SELECT id, group_name, title, checked FROM checklist_tasks ORDER BY CASE group_name WHEN 'open' THEN 0 WHEN 'middle' THEN 1 ELSE 2 END, sort_order, id")
             .all();
 
-        if (
-            results.length !== TASK_COUNT ||
-            results.some((row, index) => row.task_index !== index)
-        ) {
-            console.error("Checklist database is missing initialized task rows.");
-            return jsonResponse({ error: "공유 체크리스트가 아직 초기화되지 않았습니다." }, 503);
-        }
-
         return jsonResponse({
-            tasks: results.map(row => row.checked === 1)
+            admin: await isAdmin(context),
+            tasks: results.map(row => ({
+                id: row.id,
+                group: row.group_name,
+                title: row.title,
+                checked: row.checked === 1
+            }))
         });
     } catch (error) {
         console.error("Unable to load shared checklist.", error);
@@ -51,34 +49,28 @@ export async function onRequestPost(context) {
         return jsonResponse({ error: "요청 형식이 올바르지 않습니다." }, 400);
     }
 
-    if (!update || typeof update !== "object" || Array.isArray(update)) {
+    if (
+        !update ||
+        typeof update !== "object" ||
+        Array.isArray(update) ||
+        typeof update.id !== "string" ||
+        typeof update.checked !== "boolean" ||
+        typeof update.employeeName !== "string" ||
+        update.employeeName.trim().length < 1 ||
+        update.employeeName.trim().length > 40
+    ) {
         return jsonResponse({ error: "요청 형식이 올바르지 않습니다." }, 400);
     }
 
     try {
         const database = getDatabase(context);
+        const result = await database
+            .prepare("UPDATE checklist_tasks SET checked = ? WHERE id = ?")
+            .bind(update.checked ? 1 : 0, update.id)
+            .run();
 
-        if (
-            Number.isInteger(update.index) &&
-            update.index >= 0 &&
-            update.index < TASK_COUNT &&
-            typeof update.checked === "boolean"
-        ) {
-            const result = await database
-                .prepare("UPDATE checklist_state SET checked = ? WHERE task_index = ?")
-                .bind(update.checked ? 1 : 0, update.index)
-                .run();
-
-            if (result.meta.changes !== 1) {
-                return jsonResponse({ error: "공유 체크리스트가 아직 초기화되지 않았습니다." }, 503);
-            }
-        } else if (typeof update.all === "boolean") {
-            await database
-                .prepare("UPDATE checklist_state SET checked = ?")
-                .bind(update.all ? 1 : 0)
-                .run();
-        } else {
-            return jsonResponse({ error: "체크 항목 값이 올바르지 않습니다." }, 400);
+        if (result.meta.changes !== 1) {
+            return jsonResponse({ error: "업무 항목을 찾을 수 없습니다. 새로고침해 주세요." }, 404);
         }
 
         return jsonResponse({ success: true });
