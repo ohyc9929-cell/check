@@ -1,4 +1,4 @@
-const TASK_COUNT = 24;
+const TASK_COUNT = 18;
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
