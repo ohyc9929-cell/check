@@ -22,7 +22,7 @@ export async function onRequestGet(context) {
     try {
         const database = getDatabase(context);
         const { results } = await database
-            .prepare("SELECT id, group_name, title, checked FROM checklist_tasks ORDER BY CASE group_name WHEN 'open' THEN 0 WHEN 'middle' THEN 1 ELSE 2 END, sort_order, id")
+            .prepare("SELECT id, group_name, title, checked, checked_by FROM checklist_tasks ORDER BY CASE group_name WHEN 'open' THEN 0 WHEN 'middle' THEN 1 ELSE 2 END, sort_order, id")
             .all();
 
         return jsonResponse({
@@ -31,7 +31,8 @@ export async function onRequestGet(context) {
                 id: row.id,
                 group: row.group_name,
                 title: row.title,
-                checked: row.checked === 1
+                checked: row.checked === 1,
+                checkedBy: row.checked_by
             }))
         });
     } catch (error) {
@@ -65,8 +66,8 @@ export async function onRequestPost(context) {
     try {
         const database = getDatabase(context);
         const result = await database
-            .prepare("UPDATE checklist_tasks SET checked = ? WHERE id = ?")
-            .bind(update.checked ? 1 : 0, update.id)
+            .prepare("UPDATE checklist_tasks SET checked = ?, checked_by = ? WHERE id = ?")
+            .bind(update.checked ? 1 : 0, update.checked ? update.employeeName.trim() : null, update.id)
             .run();
 
         if (result.meta.changes !== 1) {

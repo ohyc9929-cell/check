@@ -264,6 +264,13 @@
             flex: 1;
         }
 
+        .task-checker {
+            flex: none;
+            color: #a1a1aa;
+            font-size: 13px !important;
+            text-align: right;
+        }
+
         .task.completed span {
             text-decoration: line-through;
             color: var(--completed-text);
@@ -310,13 +317,17 @@
             .task span {
                 font-size: 15px;
             }
+
+            .task-checker {
+                font-size: 12px !important;
+            }
         }
     </style>
 </head>
 
 <body>
 
-<button class="top-button employee-button" id="employeeButton" type="button">알바생</button>
+<button class="top-button employee-button" id="employeeButton" type="button">근무자</button>
 <button class="top-button admin-button" id="adminButton" type="button">관리자 로그인</button>
 
 <div class="container">
@@ -391,7 +402,7 @@
 
 <dialog id="employeeDialog">
     <form class="dialog-form" id="employeeForm">
-        <h2>알바생 이름 입력</h2>
+        <h2>근무자 이름 입력</h2>
         <label for="employeeNameInput">이름</label>
         <input id="employeeNameInput" name="name" type="text" maxlength="40" autocomplete="name" required>
         <div class="dialog-actions">
@@ -464,8 +475,8 @@
 
     function updateEmployeeControls() {
         employeeButton.textContent = employeeName
-            ? "알바생: " + employeeName
-            : "알바생";
+            ? "근무자: " + employeeName
+            : "근무자";
 
         document.querySelectorAll(".task-checkbox").forEach(checkbox => {
             checkbox.disabled = !employeeName;
@@ -505,7 +516,11 @@
                     checkbox.dataset.taskId = task.id;
                     checkbox.addEventListener("change", () => {
                         task.checked = checkbox.checked;
+                        task.checkedBy = checkbox.checked ? employeeName : null;
                         row.classList.toggle("completed", checkbox.checked);
+                        checker.textContent = task.checkedBy
+                            ? task.checkedBy + "님 완료"
+                            : "";
                         updateProgress();
                         saveTask(task);
                     });
@@ -513,9 +528,16 @@
                     const title = document.createElement("span");
                     title.textContent = task.title;
 
+                    const checker = document.createElement("span");
+                    checker.className = "task-checker";
+                    checker.setAttribute("aria-live", "polite");
+                    checker.textContent = task.checked && task.checkedBy
+                        ? task.checkedBy + "님 완료"
+                        : "";
+
                     row.classList.toggle("completed", task.checked);
                     row.classList.toggle("locked", !employeeName);
-                    row.append(checkbox, title);
+                    row.append(checkbox, title, checker);
 
                     if (adminAuthenticated) {
                         const removeButton = document.createElement("button");
@@ -541,6 +563,11 @@
                 checkbox.disabled = !employeeName;
                 checkbox.closest(".task").classList.toggle("completed", task.checked);
                 checkbox.closest(".task").classList.toggle("locked", !employeeName);
+
+                const checker = checkbox.closest(".task").querySelector(".task-checker");
+                checker.textContent = task.checked && task.checkedBy
+                    ? task.checkedBy + "님 완료"
+                    : "";
             }
         }
 
@@ -583,7 +610,8 @@
                     id: task.id,
                     group: task.group,
                     title: task.title,
-                    checked: task.checked === true
+                    checked: task.checked === true,
+                    checkedBy: typeof task.checkedBy === "string" ? task.checkedBy : null
                 }));
                 updateAdminControls();
                 updateEmployeeControls();
@@ -599,7 +627,7 @@
 
     function saveTask(task) {
         if (!employeeName) {
-            setSyncStatus("먼저 알바생 이름을 입력해 주세요.", "error");
+            setSyncStatus("먼저 근무자 이름을 입력해 주세요.", "error");
             return;
         }
 
