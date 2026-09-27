@@ -501,8 +501,11 @@
         middle: "미들조",
         close: "마감조"
     };
+    const WORKER_IDLE_TIMEOUT = 5 * 60 * 1000;
+    const WORKER_ACTIVITY_KEY = "checklistWorkerLastActivity";
     const today = new Date();
     let employeeName = sessionStorage.getItem("checklistEmployeeName") || "";
+    let workerLastActivityAt = Number(sessionStorage.getItem(WORKER_ACTIVITY_KEY));
     let adminAuthenticated = false;
     let tasks = [];
     let taskStructure = "";
@@ -570,6 +573,32 @@
             checkbox.disabled = !employeeName;
             checkbox.closest(".task").classList.toggle("locked", !employeeName);
         });
+    }
+
+    function logoutInactiveWorker() {
+        employeeName = "";
+        workerLastActivityAt = 0;
+        sessionStorage.removeItem("checklistEmployeeName");
+        sessionStorage.removeItem(WORKER_ACTIVITY_KEY);
+        updateEmployeeControls();
+        setSyncStatus("5분 동안 활동이 없어 근무자 로그아웃되었습니다. 다시 이름을 입력해 주세요.", "error");
+    }
+
+    function recordWorkerActivity() {
+        checkWorkerInactivity();
+        if (!employeeName) return;
+
+        const now = Date.now();
+        if (now - workerLastActivityAt < 1000) return;
+
+        workerLastActivityAt = now;
+        sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(now));
+    }
+
+    function checkWorkerInactivity() {
+        if (employeeName && Date.now() - workerLastActivityAt >= WORKER_IDLE_TIMEOUT) {
+            logoutInactiveWorker();
+        }
     }
 
     function updateAdminControls() {
@@ -798,6 +827,8 @@
 
         employeeName = name.slice(0, 40);
         sessionStorage.setItem("checklistEmployeeName", employeeName);
+        workerLastActivityAt = Date.now();
+        sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(workerLastActivityAt));
         updateEmployeeControls();
         employeeDialog.close();
     });
@@ -850,9 +881,21 @@
         });
     });
 
+    if (employeeName && (!Number.isFinite(workerLastActivityAt) || workerLastActivityAt <= 0)) {
+        workerLastActivityAt = Date.now();
+        sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(workerLastActivityAt));
+    }
+
+    checkWorkerInactivity();
     updateEmployeeControls();
     refreshSharedTasks();
     setInterval(refreshSharedTasks, 2000);
+    setInterval(checkWorkerInactivity, 1000);
+
+    ["pointerdown", "pointermove", "keydown", "touchstart", "scroll", "input"].forEach(eventName => {
+        document.addEventListener(eventName, recordWorkerActivity, { passive: true });
+    });
+    document.addEventListener("visibilitychange", checkWorkerInactivity);
 
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").catch(error => {
