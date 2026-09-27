@@ -83,6 +83,21 @@
             margin-bottom: 25px;
         }
 
+        .sync-status {
+            text-align: center;
+            color: var(--muted-text);
+            font-size: 14px;
+            margin: -16px 0 20px;
+        }
+
+        .sync-status[data-state="connected"] {
+            color: #15803d;
+        }
+
+        .sync-status[data-state="error"] {
+            color: #dc2626;
+        }
+
         /* 진행률 */
         .progress-box {
             background: var(--card-background);
@@ -241,6 +256,9 @@
     <h1>📝 알바 업무 체크리스트</h1>
 
     <div class="date" id="today"></div>
+    <div class="sync-status" id="syncStatus" role="status" aria-live="polite">
+        공유 서버 연결 중...
+    </div>
 
     <!-- 진행률 -->
     <div class="progress-box">
@@ -476,46 +494,131 @@
         today.getDate() + "일";
 
 
-    // 체크 상태 저장
-    function saveData() {
+    const syncStatus = document.getElementById("syncStatus");
+    let pendingWrites = 0;
+    let refreshInProgress = false;
+    let writeQueue = Promise.resolve();
 
-        const data = [];
+    function setSyncStatus(message, state) {
 
-        checkboxes.forEach((checkbox, index) => {
-            data[index] = checkbox.checked;
-        });
+        syncStatus.textContent = message;
+        syncStatus.dataset.state = state;
 
-        localStorage.setItem(
-            "partTimeChecklist",
-            JSON.stringify(data)
-        );
     }
 
 
-    // 체크 상태 불러오기
-    function loadData() {
+    function applySharedTasks(tasks) {
 
-        const savedData =
-            JSON.parse(
-                localStorage.getItem("partTimeChecklist")
-            );
+        if (
+            !Array.isArray(tasks) ||
+            tasks.length !== checkboxes.length ||
+            tasks.some(task => typeof task !== "boolean")
+        ) {
+            throw new Error("공유 데이터 형식이 올바르지 않습니다.");
+        }
 
-        if (!savedData) return;
+        let changed = false;
 
         checkboxes.forEach((checkbox, index) => {
 
-            checkbox.checked =
-                savedData[index] || false;
+            if (checkbox.checked !== tasks[index]) {
+                checkbox.checked = tasks[index];
+                updateTaskStyle(checkbox);
+                changed = true;
+            }
 
-            updateTaskStyle(checkbox);
         });
 
-        updateProgress();
+        if (changed) {
+            updateProgress();
+        }
+
+    }
+
+
+    async function fetchSharedTasks() {
+
+        const response = await fetch("/api/state", {
+            cache: "no-store"
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "공유 서버에 연결할 수 없습니다.");
+        }
+
+        return result.tasks;
+
+    }
+
+
+    async function refreshSharedTasks() {
+
+        if (refreshInProgress) return;
+
+        refreshInProgress = true;
+
+        try {
+            const tasks = await fetchSharedTasks();
+
+            if (pendingWrites === 0) {
+                applySharedTasks(tasks);
+                setSyncStatus("모든 방문자와 실시간 공유 중", "connected");
+            }
+        } catch (error) {
+            console.error("공유 체크리스트 동기화에 실패했습니다.", error);
+            setSyncStatus(error.message + " 다시 연결을 시도합니다.", "error");
+        } finally {
+            refreshInProgress = false;
+        }
+
+    }
+
+
+    function saveSharedUpdate(update) {
+
+        pendingWrites++;
+        setSyncStatus("변경사항 저장 중...", "syncing");
+
+        const request = writeQueue.then(async function() {
+
+            const response = await fetch("/api/state", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(update)
+            });
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "변경사항을 저장하지 못했습니다.");
+            }
+
+            if (pendingWrites === 1) {
+                setSyncStatus("모든 방문자와 실시간 공유 중", "connected");
+            }
+
+        });
+
+        writeQueue = request.then(
+            function() {
+                pendingWrites--;
+            },
+            function(error) {
+                console.error("공유 체크리스트 저장에 실패했습니다.", error);
+                setSyncStatus(error.message + " 다시 연결을 시도합니다.", "error");
+                pendingWrites--;
+            }
+        );
+
+        return writeQueue;
+
     }
 
 
     // 체크박스 클릭
-    checkboxes.forEach(checkbox => {
+    checkboxes.forEach((checkbox, index) => {
 
         checkbox.addEventListener("change", function() {
 
@@ -523,7 +626,10 @@
 
             updateProgress();
 
-            saveData();
+            saveSharedUpdate({
+                index,
+                checked: this.checked
+            });
 
         });
 
@@ -587,7 +693,7 @@
 
         updateProgress();
 
-        saveData();
+        saveSharedUpdate({ all: true });
 
     }
 
@@ -609,13 +715,13 @@
 
         updateProgress();
 
-        saveData();
+        saveSharedUpdate({ all: false });
 
     }
 
 
-    // 처음 실행
-    loadData();
+    refreshSharedTasks();
+    setInterval(refreshSharedTasks, 2000);
 
 </script>
 
