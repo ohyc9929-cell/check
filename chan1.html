@@ -650,11 +650,9 @@
     const noteSaveTimers = new Map();
     const noteSaveQueues = new Map();
     const pendingGroupNotes = new Set();
-    const WORKER_IDLE_TIMEOUT = 5 * 60 * 1000;
-    const WORKER_ACTIVITY_KEY = "checklistWorkerLastActivity";
+    const KOREA_UTC_OFFSET = 9 * 60 * 60 * 1000;
     const today = new Date();
     let employeeName = sessionStorage.getItem("checklistEmployeeName") || "";
-    let workerLastActivityAt = Number(sessionStorage.getItem(WORKER_ACTIVITY_KEY));
     let adminAuthenticated = false;
     let tasks = [];
     let taskStructure = "";
@@ -779,43 +777,35 @@
         });
     }
 
-    function logoutInactiveWorker() {
-        employeeName = "";
-        workerLastActivityAt = 0;
-        clearTimeout(workerLogoutTimer);
-        sessionStorage.removeItem("checklistEmployeeName");
-        sessionStorage.removeItem(WORKER_ACTIVITY_KEY);
-        updateEmployeeControls();
-        setSyncStatus("5분 동안 활동이 없어 근무자 로그아웃되었습니다. 다시 이름을 입력해 주세요.", "error");
+    function getNextKoreaDailyLogoutAt(fromTimestamp) {
+        const koreaDate = new Date(fromTimestamp + KOREA_UTC_OFFSET);
+        let logoutAt = Date.UTC(
+            koreaDate.getUTCFullYear(),
+            koreaDate.getUTCMonth(),
+            koreaDate.getUTCDate(),
+            0,
+            50
+        ) - KOREA_UTC_OFFSET;
+
+        if (logoutAt <= fromTimestamp) logoutAt += 24 * 60 * 60 * 1000;
+        return logoutAt;
     }
 
-    function recordWorkerActivity() {
-        checkWorkerInactivity();
-        if (!employeeName) return;
-
-        const now = Date.now();
-        if (now - workerLastActivityAt < 1000) return;
-
-        workerLastActivityAt = now;
-        sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(now));
-        scheduleWorkerLogout();
+    function logoutWorkerAtDailyTime() {
+        employeeName = "";
+        clearTimeout(workerLogoutTimer);
+        sessionStorage.removeItem("checklistEmployeeName");
+        updateEmployeeControls();
+        setSyncStatus("매일 오전 12시 50분이 되어 근무자 로그아웃되었습니다. 다시 이름을 입력해 주세요.", "error");
     }
 
     function scheduleWorkerLogout() {
         clearTimeout(workerLogoutTimer);
         if (!employeeName) return;
 
-        const remaining = Math.max(
-            0,
-            WORKER_IDLE_TIMEOUT - (Date.now() - workerLastActivityAt)
-        );
-        workerLogoutTimer = setTimeout(checkWorkerInactivity, remaining);
-    }
-
-    function checkWorkerInactivity() {
-        if (employeeName && Date.now() - workerLastActivityAt >= WORKER_IDLE_TIMEOUT) {
-            logoutInactiveWorker();
-        }
+        const now = Date.now();
+        const remaining = getNextKoreaDailyLogoutAt(now) - now;
+        workerLogoutTimer = setTimeout(logoutWorkerAtDailyTime, remaining);
     }
 
     function updateAdminControls() {
@@ -1053,8 +1043,6 @@
 
         employeeName = name.slice(0, 40);
         sessionStorage.setItem("checklistEmployeeName", employeeName);
-        workerLastActivityAt = Date.now();
-        sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(workerLastActivityAt));
         scheduleWorkerLogout();
         updateEmployeeControls();
         employeeDialog.close();
@@ -1108,21 +1096,10 @@
         });
     });
 
-    if (employeeName && (!Number.isFinite(workerLastActivityAt) || workerLastActivityAt <= 0)) {
-        workerLastActivityAt = Date.now();
-        sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(workerLastActivityAt));
-    }
-
-    checkWorkerInactivity();
     scheduleWorkerLogout();
     updateEmployeeControls();
     refreshSharedTasks();
     setInterval(refreshSharedTasks, 2000);
-
-    ["pointerdown", "pointermove", "keydown", "touchstart", "scroll", "input"].forEach(eventName => {
-        document.addEventListener(eventName, recordWorkerActivity, { passive: true });
-    });
-    document.addEventListener("visibilitychange", checkWorkerInactivity);
 
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").catch(error => {
