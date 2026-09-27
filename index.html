@@ -270,6 +270,9 @@
             font: inherit;
             font-size: 14px;
             font-weight: normal;
+            line-height: 1.45;
+            resize: none;
+            overflow: hidden;
         }
 
         .group-note::placeholder {
@@ -421,7 +424,7 @@
 
         <div class="group-header open">
             <span>🌅 오픈조</span>
-            <input class="group-note" data-group-note="open" type="text" maxlength="300" placeholder="특이사항" aria-label="오픈조 특이사항">
+            <textarea class="group-note" data-group-note="open" rows="1" maxlength="300" placeholder="특이사항" aria-label="오픈조 특이사항"></textarea>
         </div>
 
         <div class="task-list"></div>
@@ -437,7 +440,7 @@
 
         <div class="group-header middle">
             <span>☀️ 미들조</span>
-            <input class="group-note" data-group-note="middle" type="text" maxlength="300" placeholder="특이사항" aria-label="미들조 특이사항">
+            <textarea class="group-note" data-group-note="middle" rows="1" maxlength="300" placeholder="특이사항" aria-label="미들조 특이사항"></textarea>
         </div>
 
         <div class="task-list"></div>
@@ -453,7 +456,7 @@
 
         <div class="group-header close">
             <span>🌙 마감조</span>
-            <input class="group-note" data-group-note="close" type="text" maxlength="300" placeholder="특이사항" aria-label="마감조 특이사항">
+            <textarea class="group-note" data-group-note="close" rows="1" maxlength="300" placeholder="특이사항" aria-label="마감조 특이사항"></textarea>
         </div>
 
         <div class="task-list"></div>
@@ -596,6 +599,11 @@
         document.getElementById("progressBar").style.width = percentage + "%";
     }
 
+    function resizeGroupNote(input) {
+        input.style.height = "auto";
+        input.style.height = input.scrollHeight + "px";
+    }
+
     function updateGroupNotes(notes) {
         for (const group of Object.keys(groupNotes)) {
             if (typeof notes[group] !== "string") {
@@ -608,6 +616,7 @@
             const input = document.querySelector(`[data-group-note="${group}"]`);
             if (document.activeElement !== input) {
                 input.value = notes[group];
+                resizeGroupNote(input);
             }
         }
     }
@@ -910,7 +919,11 @@
     });
 
     document.querySelectorAll(".group-note").forEach(input => {
-        input.addEventListener("input", () => scheduleGroupNoteSave(input));
+        resizeGroupNote(input);
+        input.addEventListener("input", () => {
+            resizeGroupNote(input);
+            scheduleGroupNoteSave(input);
+        });
     });
 
     employeeButton.addEventListener("click", () => {
