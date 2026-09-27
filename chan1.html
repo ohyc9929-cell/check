@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>업무 체크리스트</title>
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#f7f8f3">
     <meta name="description" content="근무자와 함께 실시간으로 확인하는 업무 체크리스트">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/icons/checklist.svg" type="image/svg+xml">
@@ -16,43 +16,57 @@
         }
 
         :root {
-            color-scheme: dark;
-            --page-background: #111827;
-            --text-color: #f3f4f6;
-            --muted-text: #a1a1aa;
-            --card-background: #1f2937;
-            --border-color: #374151;
-            --progress-track: #374151;
-            --completed-text: #9ca3af;
-            --open-background: #1e3a5f;
-            --middle-background: #4a3b20;
-            --close-background: #3b2b52;
-            --card-shadow: 0 3px 12px rgba(0,0,0,0.2);
+            color-scheme: light;
+            --page-background: #f7f8f3;
+            --text-color: #183b3a;
+            --muted-text: #647977;
+            --card-background: #ffffff;
+            --border-color: #e0eae5;
+            --progress-track: #e1ebe6;
+            --completed-text: #7b8d88;
+            --brand-teal: #00a99d;
+            --brand-teal-dark: #087e77;
+            --brand-yellow: #ffd329;
+            --open-background: #dff5eb;
+            --middle-background: #fff2bc;
+            --close-background: #dff3f1;
+            --card-shadow: 0 8px 24px rgba(32, 79, 69, 0.08);
         }
 
         body {
             margin: 0;
-            font-family: Arial, "Noto Sans KR", sans-serif;
-            background: var(--page-background);
+            min-height: 100vh;
+            font-family: "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at 7% 4%, rgba(0, 169, 157, 0.08), transparent 34rem),
+                radial-gradient(ellipse at 94% 14%, rgba(255, 211, 41, 0.12), transparent 28rem),
+                var(--page-background);
             color: var(--text-color);
         }
 
         .top-button {
             position: fixed;
             top: 16px;
-            z-index: 1;
+            z-index: 2;
             width: auto;
             flex: none;
-            padding: 10px 14px;
-            background: #374151;
-            color: #f9fafb;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--card-shadow);
+            padding: 10px 16px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            box-shadow: 0 5px 14px rgba(24, 59, 58, 0.13);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .top-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(24, 59, 58, 0.17);
         }
 
         .employee-button {
             left: 16px;
             max-width: 42vw;
+            background: var(--brand-teal);
+            color: #ffffff;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -60,20 +74,23 @@
 
         .admin-button {
             right: 16px;
+            background: var(--brand-yellow);
+            color: #493b00;
         }
 
         dialog {
             width: min(420px, calc(100% - 32px));
-            border: 1px solid var(--border-color);
-            border-radius: 15px;
-            padding: 24px;
+            border: 1px solid #dce8e2;
+            border-radius: 22px;
+            padding: 26px;
             background: var(--card-background);
             color: var(--text-color);
-            box-shadow: var(--card-shadow);
+            box-shadow: 0 24px 70px rgba(21, 57, 52, 0.2);
         }
 
         dialog::backdrop {
-            background: rgba(0, 0, 0, 0.65);
+            background: rgba(16, 43, 40, 0.42);
+            backdrop-filter: blur(4px);
         }
 
         .dialog-form {
@@ -83,17 +100,25 @@
 
         .dialog-form h2 {
             margin: 0;
+            color: var(--brand-teal-dark);
         }
 
         .dialog-form input,
         .admin-add-form input {
             min-width: 0;
             padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            background: #111827;
+            border: 1px solid #d9e6e0;
+            border-radius: 11px;
+            background: #f8fbf8;
             color: var(--text-color);
             font-size: 16px;
+        }
+
+        .dialog-form input:focus,
+        .admin-add-form input:focus,
+        .group-note:focus {
+            outline: 3px solid rgba(0, 169, 157, 0.18);
+            border-color: var(--brand-teal);
         }
 
         .dialog-actions {
@@ -106,8 +131,8 @@
         }
 
         .cancel-button {
-            background: #4b5563;
-            color: white;
+            background: #edf3ef;
+            color: #38514c;
         }
 
         .admin-add-form {
@@ -127,15 +152,15 @@
         .add-task-button {
             flex: none;
             padding: 10px 14px;
-            background: #4f46e5;
+            background: var(--brand-teal);
             color: white;
         }
 
         .task-delete-button {
             flex: none;
             padding: 8px 10px;
-            background: #b91c1c;
-            color: white;
+            background: #fff0eb;
+            color: #b64e36;
             font-size: 14px;
         }
 
@@ -149,45 +174,105 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 820px;
             margin: 0 auto;
-            padding: 25px 15px 50px;
+            padding: 34px 18px 56px;
+        }
+
+        .brand-kicker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 48px;
+            color: var(--brand-teal-dark);
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.16em;
+        }
+
+        .brand-kicker-mark {
+            display: grid;
+            width: 22px;
+            height: 22px;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--brand-yellow);
+            color: #665100;
+            font-size: 13px;
+            letter-spacing: 0;
         }
 
         h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             text-align: center;
-            margin-bottom: 8px;
+            margin: 10px 0 8px;
+            color: #153e3b;
+            font-size: clamp(27px, 5vw, 36px);
+            font-weight: 900;
+            letter-spacing: -0.06em;
+        }
+
+        .title-icon {
+            display: grid;
+            width: 42px;
+            height: 42px;
+            flex: none;
+            place-items: center;
+            border-radius: 15px;
+            background: var(--brand-yellow);
+            font-size: 23px;
+            letter-spacing: 0;
         }
 
         .date {
             text-align: center;
             color: var(--muted-text);
-            margin-bottom: 25px;
+            margin-bottom: 22px;
+            font-size: 14px;
+            font-weight: 600;
         }
 
         .sync-status {
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            width: fit-content;
+            max-width: 100%;
+            margin: 0 auto 14px;
+            padding: 6px 12px;
+            border: 1px solid #e1ebe5;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.78);
             color: var(--muted-text);
             font-size: 14px;
-            margin: -16px 0 20px;
         }
 
         .sync-status[data-state="connected"] {
-            color: #15803d;
+            color: var(--brand-teal-dark);
         }
 
         .sync-status[data-state="error"] {
-            color: #dc2626;
+            color: #b64e36;
+            border-color: #f3d5ca;
+            background: #fff8f5;
         }
 
         .install-app-button {
             display: block;
             width: fit-content;
-            margin: -8px auto 20px;
+            margin: 0 auto 22px;
             padding: 9px 16px;
-            background: #374151;
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
+            background: #ffffff;
+            color: var(--brand-teal-dark);
+            border: 1px solid #cde6dc;
+            border-radius: 999px;
+            box-shadow: 0 3px 10px rgba(32, 79, 69, 0.06);
         }
 
         #installDialog h2 {
@@ -210,9 +295,10 @@
         /* 진행률 */
         .progress-box {
             background: var(--card-background);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
+            padding: 20px 22px;
+            border: 1px solid rgba(210, 227, 218, 0.85);
+            border-radius: 20px;
+            margin-bottom: 18px;
             box-shadow: var(--card-shadow);
         }
 
@@ -234,15 +320,17 @@
         .progress {
             height: 100%;
             width: 0%;
-            background: #4f46e5;
-            transition: 0.3s;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #00a99d, #62cda2);
+            transition: width 0.35s ease;
         }
 
         /* 조별 카드 */
         .group {
             background: var(--card-background);
-            border-radius: 15px;
-            margin-bottom: 20px;
+            border: 1px solid rgba(210, 227, 218, 0.9);
+            border-radius: 20px;
+            margin-bottom: 18px;
             overflow: hidden;
             box-shadow: var(--card-shadow);
         }
@@ -252,10 +340,11 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 18px 20px;
+            padding: 16px 20px;
             font-size: 22px;
-            font-weight: bold;
-            border-bottom: 1px solid var(--border-color);
+            font-weight: 900;
+            border-bottom: 1px solid rgba(24, 59, 58, 0.08);
+            color: #183b3a;
         }
 
         .group-note {
@@ -263,10 +352,10 @@
             min-width: 0;
             max-width: min(360px, 60%);
             padding: 9px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 8px;
-            background: rgba(17, 24, 39, 0.55);
-            color: var(--text-color);
+            border: 1px solid rgba(24, 59, 58, 0.13);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.78);
+            color: #183b3a;
             font: inherit;
             font-size: 14px;
             font-weight: normal;
@@ -276,8 +365,8 @@
         }
 
         .group-note::placeholder {
-            color: #d1d5db;
-            opacity: 0.8;
+            color: #71837d;
+            opacity: 1;
         }
 
         .open {
@@ -293,16 +382,21 @@
         }
 
         .task-list {
-            padding: 10px 20px;
+            padding: 7px 20px;
         }
 
         .task {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 15px 5px;
-            border-bottom: 1px solid var(--border-color);
+            padding: 13px 5px;
+            border-bottom: 1px solid #edf2ef;
             cursor: pointer;
+            transition: background 140ms ease;
+        }
+
+        .task:hover {
+            background: #f7fbf8;
         }
 
         .task:last-child {
@@ -312,7 +406,9 @@
         .task input {
             width: 22px;
             height: 22px;
+            flex: none;
             cursor: pointer;
+            accent-color: var(--brand-teal);
         }
 
         .task span {
@@ -322,7 +418,7 @@
 
         .task-checker {
             flex: none;
-            color: #a1a1aa;
+            color: #71837d;
             font-size: 13px !important;
             text-align: right;
         }
@@ -336,15 +432,24 @@
             flex: 1;
             padding: 14px;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
+            transition: transform 140ms ease, filter 140ms ease;
+        }
+
+        button:hover:not(:disabled) {
+            filter: brightness(0.97);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
         }
 
         @media (max-width: 600px) {
             .container {
-                padding: 15px 10px 30px;
+                padding: 20px 10px 32px;
             }
 
             .top-button {
@@ -362,14 +467,20 @@
             }
 
             h1 {
-                margin-top: 52px;
-                font-size: 25px;
+                font-size: 28px;
+            }
+
+            .title-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 13px;
+                font-size: 20px;
             }
 
             .group-header {
                 font-size: 20px;
                 gap: 8px;
-                padding: 14px 12px;
+                padding: 13px 12px;
             }
 
             .group-note {
@@ -396,7 +507,11 @@
 
 <div class="container">
 
-    <h1>📝 업무 체크리스트</h1>
+    <div class="brand-kicker">
+        <span class="brand-kicker-mark">✦</span>
+        FRESH DAILY CHECKLIST
+    </div>
+    <h1><span class="title-icon" aria-hidden="true">☕</span>업무 체크리스트</h1>
 
     <div class="date" id="today"></div>
     <div class="sync-status" id="syncStatus" role="status" aria-live="polite">
