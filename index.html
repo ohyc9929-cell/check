@@ -1,0 +1,625 @@
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알바 체크리스트</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --page-background: #f5f6f8;
+            --text-color: #222;
+            --muted-text: #777;
+            --card-background: #fff;
+            --border-color: #eee;
+            --progress-track: #e5e7eb;
+            --completed-text: #999;
+            --toggle-background: #fff;
+            --toggle-text: #222;
+            --open-background: #eef5ff;
+            --middle-background: #fff8e8;
+            --close-background: #f5efff;
+            --card-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --page-background: #111827;
+            --text-color: #f3f4f6;
+            --muted-text: #a1a1aa;
+            --card-background: #1f2937;
+            --border-color: #374151;
+            --progress-track: #374151;
+            --completed-text: #9ca3af;
+            --toggle-background: #1f2937;
+            --toggle-text: #f3f4f6;
+            --open-background: #1e3a5f;
+            --middle-background: #4a3b20;
+            --close-background: #3b2b52;
+            --card-shadow: 0 3px 12px rgba(0,0,0,0.2);
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, "Noto Sans KR", sans-serif;
+            background: var(--page-background);
+            color: var(--text-color);
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1;
+            width: auto;
+            flex: none;
+            padding: 10px 14px;
+            background: var(--toggle-background);
+            color: var(--toggle-text);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--card-shadow);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 25px 15px 50px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .date {
+            text-align: center;
+            color: var(--muted-text);
+            margin-bottom: 25px;
+        }
+
+        /* 진행률 */
+        .progress-box {
+            background: var(--card-background);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: var(--progress-track);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            width: 0%;
+            background: #4f46e5;
+            transition: 0.3s;
+        }
+
+        /* 조별 카드 */
+        .group {
+            background: var(--card-background);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+        }
+
+        .group-header {
+            padding: 18px 20px;
+            font-size: 22px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .open {
+            background: var(--open-background);
+        }
+
+        .middle {
+            background: var(--middle-background);
+        }
+
+        .close {
+            background: var(--close-background);
+        }
+
+        .task-list {
+            padding: 10px 20px;
+        }
+
+        .task {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px 5px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .task:last-child {
+            border-bottom: none;
+        }
+
+        .task input {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+
+        .task span {
+            font-size: 16px;
+            flex: 1;
+        }
+
+        .task.completed span {
+            text-decoration: line-through;
+            color: var(--completed-text);
+        }
+
+        /* 버튼 */
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .reset {
+            background: #ef4444;
+            color: white;
+        }
+
+        .all-check {
+            background: #4f46e5;
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px 10px 30px;
+            }
+
+            .theme-toggle {
+                top: 10px;
+                right: 10px;
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+
+            h1 {
+                margin-top: 48px;
+                font-size: 25px;
+            }
+
+            .group-header {
+                font-size: 20px;
+            }
+
+            .task span {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="다크 모드로 전환" aria-pressed="false">
+    🌙 다크 모드
+</button>
+
+<div class="container">
+
+    <h1>📝 알바 업무 체크리스트</h1>
+
+    <div class="date" id="today"></div>
+
+    <!-- 진행률 -->
+    <div class="progress-box">
+
+        <div class="progress-text">
+            <span>오늘 전체 진행률</span>
+            <span id="progressText">0 / 0</span>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress" id="progressBar"></div>
+        </div>
+
+    </div>
+
+
+    <!-- 오픈 -->
+    <div class="group">
+
+        <div class="group-header open">
+            🌅 오픈조
+        </div>
+
+        <div class="task-list">
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>매장 전체 청소</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>바닥 청소 및 걸레질</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>테이블 및 의자 정리</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>화장실 청소 및 비품 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>재료 및 식자재 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>냉장고 온도 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>포스기 및 매장 기기 켜기</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>매장 오픈 준비 완료</span>
+            </label>
+
+        </div>
+    </div>
+
+
+    <!-- 미들 -->
+    <div class="group">
+
+        <div class="group-header middle">
+            ☀️ 미들조
+        </div>
+
+        <div class="task-list">
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>테이블 정리 및 청소</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>식자재 재고 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>부족한 재료 보충</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>화장실 상태 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>쓰레기통 확인 및 교체</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>주방 및 매장 정리</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>마감조에게 특이사항 전달</span>
+            </label>
+
+        </div>
+    </div>
+
+
+    <!-- 마감 -->
+    <div class="group">
+
+        <div class="group-header close">
+            🌙 마감조
+        </div>
+
+        <div class="task-list">
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>테이블 및 의자 정리</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>매장 바닥 청소</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>주방 청소</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>식자재 정리 및 냉장고 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>쓰레기 배출</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>화장실 최종 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>포스기 및 기기 종료</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>전등 및 에어컨 확인</span>
+            </label>
+
+            <label class="task">
+                <input type="checkbox" onchange="updateProgress()">
+                <span>문 잠금 및 최종 퇴점 확인</span>
+            </label>
+
+        </div>
+    </div>
+
+
+    <!-- 버튼 -->
+    <div class="buttons">
+        <button class="all-check" onclick="checkAll()">
+            ✅ 전체 완료
+        </button>
+
+        <button class="reset" onclick="resetAll()">
+            🔄 전체 초기화
+        </button>
+    </div>
+
+</div>
+
+
+<script>
+
+    const checkboxes = document.querySelectorAll(
+        'input[type="checkbox"]'
+    );
+    const themeToggle = document.getElementById("themeToggle");
+    const themeStorageKey = "partTimeChecklistTheme";
+
+    function applyTheme(theme) {
+
+        const isDark = theme === "dark";
+
+        document.documentElement.dataset.theme = theme;
+        themeToggle.textContent = isDark ? "☀️ 라이트 모드" : "🌙 다크 모드";
+        themeToggle.setAttribute(
+            "aria-label",
+            isDark ? "라이트 모드로 전환" : "다크 모드로 전환"
+        );
+        themeToggle.setAttribute("aria-pressed", String(isDark));
+
+    }
+
+    const savedTheme = localStorage.getItem(themeStorageKey);
+    applyTheme(savedTheme === "dark" ? "dark" : "light");
+
+    themeToggle.addEventListener("click", function() {
+
+        const nextTheme =
+            document.documentElement.dataset.theme === "dark"
+                ? "light"
+                : "dark";
+
+        applyTheme(nextTheme);
+        localStorage.setItem(themeStorageKey, nextTheme);
+
+    });
+
+    // 오늘 날짜
+    const today = new Date();
+
+    document.getElementById("today").innerText =
+        today.getFullYear() + "년 " +
+        (today.getMonth() + 1) + "월 " +
+        today.getDate() + "일";
+
+
+    // 체크 상태 저장
+    function saveData() {
+
+        const data = [];
+
+        checkboxes.forEach((checkbox, index) => {
+            data[index] = checkbox.checked;
+        });
+
+        localStorage.setItem(
+            "partTimeChecklist",
+            JSON.stringify(data)
+        );
+    }
+
+
+    // 체크 상태 불러오기
+    function loadData() {
+
+        const savedData =
+            JSON.parse(
+                localStorage.getItem("partTimeChecklist")
+            );
+
+        if (!savedData) return;
+
+        checkboxes.forEach((checkbox, index) => {
+
+            checkbox.checked =
+                savedData[index] || false;
+
+            updateTaskStyle(checkbox);
+        });
+
+        updateProgress();
+    }
+
+
+    // 체크박스 클릭
+    checkboxes.forEach(checkbox => {
+
+        checkbox.addEventListener("change", function() {
+
+            updateTaskStyle(this);
+
+            updateProgress();
+
+            saveData();
+
+        });
+
+    });
+
+
+    // 완료된 업무 취소선
+    function updateTaskStyle(checkbox) {
+
+        const task =
+            checkbox.closest(".task");
+
+        if (checkbox.checked) {
+            task.classList.add("completed");
+        } else {
+            task.classList.remove("completed");
+        }
+
+    }
+
+
+    // 진행률
+    function updateProgress() {
+
+        let completed = 0;
+
+        checkboxes.forEach(checkbox => {
+
+            if (checkbox.checked) {
+                completed++;
+            }
+
+        });
+
+        const total = checkboxes.length;
+
+        const percentage =
+            total === 0
+                ? 0
+                : Math.round((completed / total) * 100);
+
+        document.getElementById("progressText").innerText =
+            completed + " / " + total + " (" + percentage + "%)";
+
+        document.getElementById("progressBar").style.width =
+            percentage + "%";
+
+    }
+
+
+    // 전체 완료
+    function checkAll() {
+
+        checkboxes.forEach(checkbox => {
+
+            checkbox.checked = true;
+
+            updateTaskStyle(checkbox);
+
+        });
+
+        updateProgress();
+
+        saveData();
+
+    }
+
+
+    // 전체 초기화
+    function resetAll() {
+
+        if (!confirm("모든 체크를 초기화할까요?")) {
+            return;
+        }
+
+        checkboxes.forEach(checkbox => {
+
+            checkbox.checked = false;
+
+            updateTaskStyle(checkbox);
+
+        });
+
+        updateProgress();
+
+        saveData();
+
+    }
+
+
+    // 처음 실행
+    loadData();
+
+</script>
+
+</body>
+</html>
+```
