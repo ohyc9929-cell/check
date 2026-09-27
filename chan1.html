@@ -498,6 +498,7 @@
     let pendingWrites = 0;
     let refreshInProgress = false;
     let writeQueue = Promise.resolve();
+    let hasLoadedSharedTasks = false;
 
     function setSyncStatus(message, state) {
 
@@ -529,9 +530,11 @@
 
         });
 
-        if (changed) {
+        if (changed || !hasLoadedSharedTasks) {
             updateProgress();
         }
+
+        hasLoadedSharedTasks = true;
 
     }
 
