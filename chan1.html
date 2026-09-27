@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>업무 체크리스트</title>
+    <meta name="theme-color" content="#111827">
+    <meta name="description" content="근무자와 함께 실시간으로 확인하는 업무 체크리스트">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/checklist.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/icon-180.png">
 
     <style>
         * {
@@ -177,6 +182,33 @@
             color: #dc2626;
         }
 
+        .install-app-button {
+            display: block;
+            width: fit-content;
+            margin: -8px auto 20px;
+            padding: 9px 16px;
+            background: #374151;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        #installDialog h2 {
+            margin: 0;
+        }
+
+        .install-steps {
+            margin: 0;
+            padding-left: 22px;
+            line-height: 1.7;
+        }
+
+        .install-note {
+            margin: 0;
+            color: var(--muted-text);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
         /* 진행률 */
         .progress-box {
             background: var(--card-background);
@@ -338,6 +370,7 @@
     <div class="sync-status" id="syncStatus" role="status" aria-live="polite">
         공유 서버 연결 중...
     </div>
+    <button class="install-app-button" id="installAppButton" type="button">앱 설치</button>
 
     <!-- 진행률 -->
     <div class="progress-box">
@@ -425,6 +458,28 @@
     </form>
 </dialog>
 
+<dialog id="installDialog">
+    <div class="dialog-form">
+        <h2>앱 설치 방법</h2>
+        <strong>iPhone / iPad</strong>
+        <ol class="install-steps">
+            <li>Safari에서 이 사이트를 열고 공유 버튼을 누릅니다.</li>
+            <li>아래로 내려 <strong>홈 화면에 추가</strong>를 선택합니다.</li>
+            <li><strong>추가</strong>를 눌러 설치를 마칩니다.</li>
+        </ol>
+        <strong>갤럭시 / Android</strong>
+        <ol class="install-steps">
+            <li>Chrome에서 이 사이트를 열고 오른쪽 위 메뉴(⋮)를 누릅니다.</li>
+            <li><strong>앱 설치</strong> 또는 <strong>홈 화면에 추가</strong>를 선택합니다.</li>
+            <li>화면 안내에 따라 설치를 완료합니다.</li>
+        </ol>
+        <p class="install-note">설치 후에는 앱 아이콘으로 열 수 있으며, 체크리스트 데이터는 사이트와 실시간으로 공유됩니다.</p>
+        <div class="dialog-actions">
+            <button class="cancel-button" id="closeInstallDialog" type="button">닫기</button>
+        </div>
+    </div>
+</dialog>
+
 
 <script>
     const syncStatus = document.getElementById("syncStatus");
@@ -432,6 +487,8 @@
     const adminButton = document.getElementById("adminButton");
     const employeeDialog = document.getElementById("employeeDialog");
     const adminDialog = document.getElementById("adminDialog");
+    const installDialog = document.getElementById("installDialog");
+    const installAppButton = document.getElementById("installAppButton");
     const employeeForm = document.getElementById("employeeForm");
     const adminForm = document.getElementById("adminForm");
     const adminLoginStatus = document.getElementById("adminLoginStatus");
@@ -452,6 +509,37 @@
     let pendingWrites = 0;
     let refreshInProgress = false;
     let writeQueue = Promise.resolve();
+    let pendingInstallPrompt = null;
+
+    window.addEventListener("beforeinstallprompt", event => {
+        event.preventDefault();
+        pendingInstallPrompt = event;
+        installAppButton.textContent = "앱 설치";
+    });
+
+    window.addEventListener("appinstalled", () => {
+        pendingInstallPrompt = null;
+        installAppButton.hidden = true;
+    });
+
+    installAppButton.addEventListener("click", async () => {
+        if (!pendingInstallPrompt) {
+            installDialog.showModal();
+            return;
+        }
+
+        await pendingInstallPrompt.prompt();
+        await pendingInstallPrompt.userChoice;
+        pendingInstallPrompt = null;
+    });
+
+    document.getElementById("closeInstallDialog").addEventListener("click", () => {
+        installDialog.close();
+    });
+
+    if (window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) {
+        installAppButton.hidden = true;
+    }
 
     document.getElementById("today").textContent =
         today.getFullYear() + "년 " +
@@ -765,6 +853,12 @@
     updateEmployeeControls();
     refreshSharedTasks();
     setInterval(refreshSharedTasks, 2000);
+
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js").catch(error => {
+            console.error("앱 오프라인 지원을 시작하지 못했습니다.", error);
+        });
+    }
 </script>
 
 </body>
