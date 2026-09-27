@@ -21,19 +21,25 @@ function getDatabase(context) {
 export async function onRequestGet(context) {
     try {
         const database = getDatabase(context);
-        const { results } = await database
-            .prepare("SELECT id, group_name, title, checked, checked_by FROM checklist_tasks ORDER BY CASE group_name WHEN 'open' THEN 0 WHEN 'middle' THEN 1 ELSE 2 END, sort_order, id")
-            .all();
+        const [taskResults, noteResults] = await Promise.all([
+            database
+                .prepare("SELECT id, group_name, title, checked, checked_by FROM checklist_tasks ORDER BY CASE group_name WHEN 'open' THEN 0 WHEN 'middle' THEN 1 ELSE 2 END, sort_order, id")
+                .all(),
+            database
+                .prepare("SELECT group_name, note FROM checklist_group_notes")
+                .all()
+        ]);
 
         return jsonResponse({
             admin: await isAdmin(context),
-            tasks: results.map(row => ({
+            tasks: taskResults.results.map(row => ({
                 id: row.id,
                 group: row.group_name,
                 title: row.title,
                 checked: row.checked === 1,
                 checkedBy: row.checked_by
-            }))
+            })),
+            notes: Object.fromEntries(noteResults.results.map(row => [row.group_name, row.note]))
         });
     } catch (error) {
         console.error("Unable to load shared checklist.", error);
@@ -48,6 +54,31 @@ export async function onRequestPost(context) {
         update = await context.request.json();
     } catch {
         return jsonResponse({ error: "요청 형식이 올바르지 않습니다." }, 400);
+    }
+
+    if (
+        update &&
+        typeof update === "object" &&
+        !Array.isArray(update) &&
+        ["open", "middle", "close"].includes(update.group) &&
+        typeof update.note === "string"
+    ) {
+        const note = update.note.trim();
+        if (note.length > 300) {
+            return jsonResponse({ error: "특이사항은 300자 이내로 입력해 주세요." }, 400);
+        }
+
+        try {
+            await getDatabase(context)
+                .prepare("INSERT INTO checklist_group_notes (group_name, note) VALUES (?, ?) ON CONFLICT(group_name) DO UPDATE SET note = excluded.note")
+                .bind(update.group, note)
+                .run();
+
+            return jsonResponse({ success: true });
+        } catch (error) {
+            console.error("Unable to save shared group note.", error);
+            return jsonResponse({ error: "특이사항을 저장하지 못했습니다." }, 503);
+        }
     }
 
     if (

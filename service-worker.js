@@ -1,4 +1,4 @@
-const CACHE_NAME = "work-checklist-v2";
+const CACHE_NAME = "work-checklist-v4";
 const APP_SHELL = [
     "/",
     "/manifest.webmanifest",

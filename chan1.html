@@ -248,10 +248,33 @@
         }
 
         .group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
             padding: 18px 20px;
             font-size: 22px;
             font-weight: bold;
             border-bottom: 1px solid var(--border-color);
+        }
+
+        .group-note {
+            flex: 1;
+            min-width: 0;
+            max-width: min(360px, 60%);
+            padding: 9px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 8px;
+            background: rgba(17, 24, 39, 0.55);
+            color: var(--text-color);
+            font: inherit;
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        .group-note::placeholder {
+            color: #d1d5db;
+            opacity: 0.8;
         }
 
         .open {
@@ -342,6 +365,14 @@
 
             .group-header {
                 font-size: 20px;
+                gap: 8px;
+                padding: 14px 12px;
+            }
+
+            .group-note {
+                max-width: 58%;
+                padding: 8px 7px;
+                font-size: 13px;
             }
 
             .task span {
@@ -389,7 +420,8 @@
     <div class="group" data-group="open">
 
         <div class="group-header open">
-            🌅 오픈조
+            <span>🌅 오픈조</span>
+            <input class="group-note" data-group-note="open" type="text" maxlength="300" placeholder="특이사항" aria-label="오픈조 특이사항">
         </div>
 
         <div class="task-list"></div>
@@ -404,7 +436,8 @@
     <div class="group" data-group="middle">
 
         <div class="group-header middle">
-            ☀️ 미들조
+            <span>☀️ 미들조</span>
+            <input class="group-note" data-group-note="middle" type="text" maxlength="300" placeholder="특이사항" aria-label="미들조 특이사항">
         </div>
 
         <div class="task-list"></div>
@@ -419,7 +452,8 @@
     <div class="group" data-group="close">
 
         <div class="group-header close">
-            🌙 마감조
+            <span>🌙 마감조</span>
+            <input class="group-note" data-group-note="close" type="text" maxlength="300" placeholder="특이사항" aria-label="마감조 특이사항">
         </div>
 
         <div class="task-list"></div>
@@ -494,6 +528,10 @@
         [...document.querySelectorAll(".group[data-group]")]
             .map(element => [element.dataset.group, element])
     );
+    const groupNotes = { open: "", middle: "", close: "" };
+    const noteSaveTimers = new Map();
+    const noteSaveQueues = new Map();
+    const pendingGroupNotes = new Set();
     const WORKER_IDLE_TIMEOUT = 5 * 60 * 1000;
     const WORKER_ACTIVITY_KEY = "checklistWorkerLastActivity";
     const today = new Date();
@@ -556,6 +594,54 @@
         document.getElementById("progressText").textContent =
             completed + " / " + total + " (" + percentage + "%)";
         document.getElementById("progressBar").style.width = percentage + "%";
+    }
+
+    function updateGroupNotes(notes) {
+        for (const group of Object.keys(groupNotes)) {
+            if (typeof notes[group] !== "string") {
+                throw new Error("공유 특이사항 형식이 올바르지 않습니다.");
+            }
+
+            if (pendingGroupNotes.has(group)) continue;
+            groupNotes[group] = notes[group];
+
+            const input = document.querySelector(`[data-group-note="${group}"]`);
+            if (document.activeElement !== input) {
+                input.value = notes[group];
+            }
+        }
+    }
+
+    function scheduleGroupNoteSave(input) {
+        const group = input.dataset.groupNote;
+        groupNotes[group] = input.value;
+        pendingGroupNotes.add(group);
+        clearTimeout(noteSaveTimers.get(group));
+
+        const timer = setTimeout(() => {
+            noteSaveTimers.delete(group);
+            const previous = noteSaveQueues.get(group) || Promise.resolve();
+            const save = previous.catch(() => {}).then(() =>
+                requestJson("/api/state", {
+                    method: "POST",
+                    body: JSON.stringify({ group, note: groupNotes[group] })
+                })
+            );
+
+            noteSaveQueues.set(group, save);
+            save.then(() => {
+                if (noteSaveTimers.has(group)) return;
+                pendingGroupNotes.delete(group);
+                if (pendingWrites === 0 && pendingGroupNotes.size === 0) {
+                    setSyncStatus("모든 방문자와 실시간 공유 중", "connected");
+                }
+            }).catch(error => {
+                console.error("공유 특이사항 저장에 실패했습니다.", error);
+                setSyncStatus(error.message + " 다시 입력해 저장을 시도해 주세요.", "error");
+            });
+        }, 400);
+
+        noteSaveTimers.set(group, timer);
     }
 
     function updateEmployeeControls() {
@@ -724,6 +810,7 @@
         try {
             const result = await requestJson("/api/state");
             adminAuthenticated = result.admin === true;
+            updateGroupNotes(result.notes);
 
             if (pendingWrites === 0) {
                 if (!Array.isArray(result.tasks)) {
@@ -820,6 +907,10 @@
                 setSyncStatus(error.message, "error");
             }
         });
+    });
+
+    document.querySelectorAll(".group-note").forEach(input => {
+        input.addEventListener("input", () => scheduleGroupNoteSave(input));
     });
 
     employeeButton.addEventListener("click", () => {
