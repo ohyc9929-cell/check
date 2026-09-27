@@ -1,4 +1,5 @@
 import { isAdmin } from "./admin/_auth.js";
+import { resetDueShiftGroups } from "./_shift_reset.mjs";
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -21,6 +22,7 @@ function getDatabase(context) {
 export async function onRequestGet(context) {
     try {
         const database = getDatabase(context);
+        await resetDueShiftGroups(database);
         const [taskResults, noteResults] = await Promise.all([
             database
                 .prepare("SELECT id, group_name, title, checked, checked_by FROM checklist_tasks ORDER BY CASE group_name WHEN 'open' THEN 0 WHEN 'middle' THEN 1 ELSE 2 END, sort_order, id")
@@ -69,7 +71,9 @@ export async function onRequestPost(context) {
         }
 
         try {
-            await getDatabase(context)
+            const database = getDatabase(context);
+            await resetDueShiftGroups(database);
+            await database
                 .prepare("INSERT INTO checklist_group_notes (group_name, note) VALUES (?, ?) ON CONFLICT(group_name) DO UPDATE SET note = excluded.note")
                 .bind(update.group, note)
                 .run();
@@ -96,6 +100,7 @@ export async function onRequestPost(context) {
 
     try {
         const database = getDatabase(context);
+        await resetDueShiftGroups(database);
         const result = await database
             .prepare("UPDATE checklist_tasks SET checked = ?, checked_by = ? WHERE id = ?")
             .bind(update.checked ? 1 : 0, update.checked ? update.employeeName.trim() : null, update.id)

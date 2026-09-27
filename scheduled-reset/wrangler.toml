@@ -1,0 +1,12 @@
+name = "checklist-daily-reset"
+main = "index.mjs"
+compatibility_date = "2026-09-27"
+
+[triggers]
+# 21:00 UTC = 06:00 KST, 02:00 UTC = 11:00 KST, 08:00 UTC = 17:00 KST.
+crons = ["0 21 * * *", "0 2 * * *", "0 8 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "checklist-shared"
+database_id = "2676f00c-1d4c-4aae-b944-31d91840c74b"
