@@ -24,8 +24,6 @@
             --border-color: #374151;
             --progress-track: #374151;
             --completed-text: #9ca3af;
-            --toggle-background: #1f2937;
-            --toggle-text: #f3f4f6;
             --open-background: #1e3a5f;
             --middle-background: #4a3b20;
             --close-background: #3b2b52;
@@ -303,7 +301,7 @@
             text-align: right;
         }
 
-        .task.completed span {
+        .task.completed > span:not(.task-checker) {
             text-decoration: line-through;
             color: var(--completed-text);
         }
@@ -496,11 +494,6 @@
         [...document.querySelectorAll(".group[data-group]")]
             .map(element => [element.dataset.group, element])
     );
-    const groupNames = {
-        open: "오픈조",
-        middle: "미들조",
-        close: "마감조"
-    };
     const WORKER_IDLE_TIMEOUT = 5 * 60 * 1000;
     const WORKER_ACTIVITY_KEY = "checklistWorkerLastActivity";
     const today = new Date();
@@ -513,6 +506,7 @@
     let refreshInProgress = false;
     let writeQueue = Promise.resolve();
     let pendingInstallPrompt = null;
+    let workerLogoutTimer = null;
 
     window.addEventListener("beforeinstallprompt", event => {
         event.preventDefault();
@@ -578,6 +572,7 @@
     function logoutInactiveWorker() {
         employeeName = "";
         workerLastActivityAt = 0;
+        clearTimeout(workerLogoutTimer);
         sessionStorage.removeItem("checklistEmployeeName");
         sessionStorage.removeItem(WORKER_ACTIVITY_KEY);
         updateEmployeeControls();
@@ -593,6 +588,18 @@
 
         workerLastActivityAt = now;
         sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(now));
+        scheduleWorkerLogout();
+    }
+
+    function scheduleWorkerLogout() {
+        clearTimeout(workerLogoutTimer);
+        if (!employeeName) return;
+
+        const remaining = Math.max(
+            0,
+            WORKER_IDLE_TIMEOUT - (Date.now() - workerLastActivityAt)
+        );
+        workerLogoutTimer = setTimeout(checkWorkerInactivity, remaining);
     }
 
     function checkWorkerInactivity() {
@@ -829,6 +836,7 @@
         sessionStorage.setItem("checklistEmployeeName", employeeName);
         workerLastActivityAt = Date.now();
         sessionStorage.setItem(WORKER_ACTIVITY_KEY, String(workerLastActivityAt));
+        scheduleWorkerLogout();
         updateEmployeeControls();
         employeeDialog.close();
     });
@@ -887,10 +895,10 @@
     }
 
     checkWorkerInactivity();
+    scheduleWorkerLogout();
     updateEmployeeControls();
     refreshSharedTasks();
     setInterval(refreshSharedTasks, 2000);
-    setInterval(checkWorkerInactivity, 1000);
 
     ["pointerdown", "pointermove", "keydown", "touchstart", "scroll", "input"].forEach(eventName => {
         document.addEventListener(eventName, recordWorkerActivity, { passive: true });
